@@ -8,13 +8,13 @@
 #define INTERVAL 25 // sampling interval (unit: ms)
 #define _DIST_MIN 100 // minimum distance to be measured (unit: mm)
 #define _DIST_MAX 300 // maximum distance to be measured (unit: mm)
-#define _DIST_MEDIAN 0 // EMA weight of new sample (range: 0 to 1). Setting this value to 1 effectively disables EMA filter.
+#define N 10 //N은 상수로 지정
 
 // global variables
 float timeout; // unit: us
-float dist_min, dist_max, dist_raw, median; // unit: mm, median:중위수
-int m, n; //m:현재 배열의 인덱스, n:총 인덱스
-float rawArray[30]; //C언어 배열함수는 숫자칸에 정수만 들어가야함, 변수도 들어가면 x
+float dist_min, dist_max, dist_raw, median; // unit: mm
+int m, n; //m:현재 배열의 인덱스, n:총 인덱스수
+float rawArray[N]; //median값 기록할 배열(C언어 배열함수는 숫자칸에 변수 못들어가서 상수 N을 넣음)
 unsigned long last_sampling_time; // unit: ms
 float scale; // used for pulse duration to distance conversion
 
@@ -27,10 +27,10 @@ void setup() {
 
 // initialize USS related variables
   dist_min = _DIST_MIN; 
-  dist_max = _DIST_MAX;
-  median = _DIST_MEDIAN;
-  n = 30;
-  m = -1;
+  dist_max = _DIST_MAX; 
+  median = 0.0; // median:중위수
+  n = N;
+  m = -1; // loop에 들어갈 때 바로 +1해야하니 -1로 시작
   timeout = (INTERVAL / 2) * 1000.0; // precalculate pulseIn() timeout value. (unit: us)
   dist_raw = 0.0; // raw distance output from USS (unit: mm)
   scale = 0.001 * 0.5 * SND_VEL;
@@ -49,33 +49,36 @@ void loop() {
 
 // get a distance reading from the USS
   dist_raw = USS_measure(PIN_TRIG,PIN_ECHO);
-  
+
+// rawArray 인덱스변수 업데이트 (가장 최근의 인덱스가 마지막 인덱스일 때 가장 나중의 인덱스부터 다시 활용)
   m += 1;
   if(m == n) m = 0;
 
+// raw값이 0이 아닐 때 -> 바로 median값과 rawArray배열 업데이트
   if(dist_raw != 0){
     rawArray[m] = dist_raw;
     median = dist_raw;
   }
+// raw값이 0일 때 
   else{
-    float new_rA[30];
-    float x = 0;
-    float a = 0;
+    float new_rA[N]; //중위수 판별할 새로운 배열 생성
+    float x = 0; // 배열 sorting할 때 사용할 변수
+    float a = 0; // rawArray배열 복사할 때 사용할 변수
     for(int i=0; i<n; i++){
       a = rawArray[i];
       new_rA[i] = a;
-    }
-    for(int j=0; j<n; j++){
-      for(int k=0; k<(n-j); k++){
-        if(new_rA[k] > new_rA[k+1]){
+    } // rawArray배열 new_rA배열에 복사
+    for(int j=0; j<n; j++){ // 배열 오름차순으로 sorting하기
+      for(int k=0; k<(n-j); k++){ // 가장 오른쪽인덱스부터 큰수로 채워질테니 n-j범위까지 for문 사용
+        if(new_rA[k] > new_rA[k+1]){ // 가장 왼쪽인덱스부터 오른쪽 인덱스값과 비교하여 높은 수는 오른쪽에 배치
           x = new_rA[k];
           new_rA[k] = new_rA[k+1];
           new_rA[k+1] = x;
         }
       }
     }
-    median = new_rA[n/2];
-    rawArray[m] = median;
+    median = new_rA[n/2]; // n이 짝수일 시 중위수 숫자는 2개이나 1개밖에 선택 못하니 n/2번째 인덱스값 선택
+    rawArray[m] = median; // rawArray배열 업데이트
   }
 
 // output the read value to the serial port
