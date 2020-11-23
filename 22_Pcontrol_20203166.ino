@@ -20,9 +20,9 @@
 #define k_LENGTH 8
 
 // Servo range
-#define _DUTY_MIN 1364    //[3148]  서보의 가동 최소 각도(0)
+#define _DUTY_MIN 1000    //[3148]  서보의 가동 최소 각도(0)
 #define _DUTY_NEU 1570      //[3150] servo neutral position (90 degree)
-#define _DUTY_MAX 1776                // [3169] 서보의 최대 가동 각도(180º)
+#define _DUTY_MAX 2000                // [3169] 서보의 최대 가동 각도(180º)
 
 // Servo speed control
 #define _SERVO_ANGLE 20   //[3159] 서보의 각도(30º) 
@@ -127,7 +127,7 @@ unsigned long time_curr = millis();
     control = pterm; // + iterm + dterm 
 
   // duty_target = f(duty_neutral, control)
-    duty_target = _DUTY_NEU + (control) * (_DUTY_MAX - _DUTY_NEU) / (dist_target - _DIST_MIN);
+    duty_target = _DUTY_NEU + (control) * (_SERVO_ANGLE * 10.3) / (dist_target - _DIST_MIN);
 
   // keep duty_target value within the range of [_DUTY_MIN, _DUTY_MAX]
     if (duty_target < _DUTY_MIN) {
